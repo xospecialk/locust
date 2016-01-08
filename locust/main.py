@@ -8,9 +8,7 @@ import signal
 import inspect
 import logging
 import socket
-import time
 from optparse import OptionParser
-from gevent.pool import Group
 
 import web
 from log import setup_logging, console_logger
@@ -206,7 +204,26 @@ def parse_options():
         default=None,
         help="Path to log file. If not set, log will go to stdout/stderr",
     )
-    
+
+    # stats file
+    parser.add_option(
+        '--statsfile-format',
+        action='store',
+        type='str',
+        dest='statsfile_format',
+        default='results/{locustfile}/{date}.json',
+        help="Generate a summary of aggregate stats and dump to this files following this format. Create one for each locustfile run. e.g. `results/{locustfile}/{date}.json`",
+    )
+
+    # save stats
+    parser.add_option(
+        '--save-stats',
+        action='store_true',
+        dest='save_stats',
+        default=False,
+        help="Save the aggregate stats according to the statsfile format"
+    )
+
     # if we should print stats in the console
     parser.add_option(
         '--print-stats',

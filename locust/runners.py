@@ -1,10 +1,12 @@
 # coding=UTF-8
 import copy
+import datetime
 import socket
 import traceback
 import warnings
 import random
 import logging
+import json
 from time import time
 from hashlib import md5
 
@@ -15,6 +17,7 @@ from gevent.pool import Group
 
 import events
 from stats import global_stats
+from log import format_logfile, save_logfile
 
 from rpc import rpc, Message
 
@@ -31,6 +34,7 @@ class LocustRunner(object):
     def __init__(self, locust_classes, options, available_locustfiles=None):
         self.locust_classes = locust_classes
         self.available_locustfiles = available_locustfiles or {}
+        self.cooldown = options.cooldown
         self.hatch_rate = options.hatch_rate
         self.num_clients = options.num_clients
         self.num_requests = options.num_requests
@@ -40,6 +44,8 @@ class LocustRunner(object):
         self.hatching_greenlet = None
         self.exceptions = {}
         self.stats = global_stats
+        self.save_stats = options.save_stats
+        self.statsfile_format = options.statsfile_format
         
         # register listener that resets stats when hatching is complete
         def on_hatch_complete(user_count):
@@ -199,6 +205,7 @@ class LocustRunner(object):
         row["count"] += 1
         row["nodes"].add(node_id)
         self.exceptions[key] = row
+
 
 class LocalLocustRunner(LocustRunner):
     def __init__(self, locust_classes, options, available_locustfiles=None):
@@ -394,22 +401,32 @@ class NoWebMasterLocustRunner(MasterLocustRunner):
         the maximum timeout in seconds has elapsed. When one of those conditions are met on each locustfile,
         move on to the next one, storing the stats result of each locustfile run.
         """
+
         for run_count, locustfile_key in enumerate(self.available_locustfiles.keys()):
+
             self.switch(locustfile_key)
+
+            if run_count > 0:
+                logger.info("Waiting {} seconds to cool down.".format(self.cooldown))
+                gevent.sleep(self.cooldown)
+
             super(NoWebMasterLocustRunner, self).start_hatching(self.num_clients, self.hatch_rate)
 
             while True:
-                import time
 
                 hit_max_requests = self.max_num_requests and (self.stats.aggregated_stats().num_requests >= self.max_num_requests)
-                hit_max_elapsed_time = self.max_seconds_elapsed and (time.time() - self.stats.start_time >= self.max_seconds_elapsed)
+                hit_max_elapsed_time = self.max_seconds_elapsed and (time() - self.stats.start_time >= self.max_seconds_elapsed)
 
                 if hit_max_requests or hit_max_elapsed_time:
                     break
 
-                time.sleep(1)
+                gevent.sleep(1)
 
             self.all_stats[locustfile_key] = copy.deepcopy(self.stats)
+
+            if self.save_stats:
+                logfile = format_logfile(self.statsfile_format, {"locustfile": locustfile_key, "date": datetime.datetime.now().isoformat()})
+                save_logfile(logfile, json.dumps(self.stats.aggregated_stats().serialize(), indent=4))
             self.stop()
 
     def wait_for_slaves(self, min_slaves, timeout):

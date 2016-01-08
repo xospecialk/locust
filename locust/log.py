@@ -1,6 +1,8 @@
+import errno
 import logging
 import sys
 import socket
+import os
 
 host = socket.gethostname()
 
@@ -14,6 +16,40 @@ def setup_logging(loglevel, logfile):
     
     sys.stderr = StdErrWrapper()
     sys.stdout = StdOutWrapper()
+
+
+def format_logfile(pattern, context):
+    """
+    Format the logfile according to the pattern and context e.g.
+
+        >>> format_logfile("results/{locustfile}/result_{date}.json", {"locustfile": "homepage", "date": datetime.now().isoformat()})
+        >>> "results/homepage/result_2015-09-08T20:29:48.json"
+
+    The pattern can contain no keywords at all for a static path.
+
+    :type pattern: str
+    :param pattern: Template file format pattern; keywords denoted by curly braces, e.g. "{keyword}"
+    :type context: dict
+    :param context: Keyword variables
+    :rtype: str
+    :return: The formatted logfile name
+    """
+    for k, v in context.iteritems():
+        pattern = pattern.replace("{%s}" % k, str(v))
+    return pattern
+
+
+def save_logfile(path, data):
+    try:
+        os.makedirs(os.path.dirname(path))
+    except OSError, e:
+        if e.errno == errno.EEXIST:
+            pass
+        else:
+            raise
+    with open(path, 'w') as f:
+        f.write(data)
+
 
 stdout_logger = logging.getLogger("stdout")
 stderr_logger = logging.getLogger("stderr")
