@@ -23,7 +23,7 @@ class Unit2Discover(Command):
 
 
 setup(
-    name='locustio',
+    name='jwlocust',
     version=version,
     description="Website load testing framework",
     long_description="""Locust is a python utility for doing easy, distributed load testing of a web site""",
@@ -51,7 +51,7 @@ setup(
     tests_require=['unittest2', 'mock', 'pyzmq'],
     entry_points={
         'console_scripts': [
-            'locust = locust.main:main',
+            'jwlocust = locust.main:main',
         ]
     },
     test_suite='unittest2.collector',
