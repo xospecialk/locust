@@ -428,7 +428,7 @@ def main():
     # setup logging
     setup_logging(options.loglevel, options.logfile)
     logger = logging.getLogger(__name__)
-    
+        
     if options.show_version:
         print "Locust %s" % (version,)
         sys.exit(0)
@@ -499,8 +499,15 @@ def main():
         # spawn web greenlet
         logger.info("Starting web monitor at %s:%s" % (options.web_host or "*", options.port))
         main_greenlet = gevent.spawn(web.start, locust_classes, options)
+        
+    if not options.master and not options.slave:
+        runners.locust_runner = LocalLocustRunner(locust_classes, options)
+        # spawn client spawning/hatching greenlet
+        if options.no_web:
+            runners.locust_runner.start_hatching(wait=True)
+            main_greenlet = runners.locust_runner.greenlet
 
-    if options.slave:
+    elif options.slave:
         logger.info("Waiting for master to become available")
         try:
             runners.locust_runner = polling.poll(

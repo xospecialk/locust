@@ -3,6 +3,10 @@ import logging
 import sys
 import socket
 import os
+import shutil
+from datetime import datetime
+
+
 
 host = socket.gethostname()
 
@@ -11,8 +15,18 @@ def setup_logging(loglevel, logfile):
     if numeric_level is None:
         raise ValueError("Invalid log level: %s" % loglevel)
     
+    if(logfile!=''):
+      if (os.path.exists(logfile)):
+        ts = datetime.utcnow()
+        shutil.copy(logfile, logfile+"."+ts.strftime("%Y%m%d_%H%M%S"))
+        os.unlink(logfile)
+      file_handler = logging.FileHandler(logfile,'w')
+      file_handler.setFormatter(logging.Formatter('%(message)s'))
+      file_handler.setLevel(numeric_level);
+      console_logger.addHandler(file_handler)
+          
     log_format = "[%(asctime)s] {0}/%(levelname)s/%(name)s: %(message)s".format(host)
-    logging.basicConfig(level=numeric_level, filename=logfile, format=log_format)
+    logging.basicConfig(level=numeric_level, filename=logfile, format=log_format)  
     
     sys.stderr = StdErrWrapper()
     sys.stdout = StdOutWrapper()
